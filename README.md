@@ -19,5 +19,3 @@ Nextcloud file drop is great but I somewhat dislike Nextcloud and wanted somethi
 
 - add a license
 - add a readme
-- add a dockerfile and build action
--
