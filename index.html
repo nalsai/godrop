@@ -81,7 +81,7 @@
                         <p>
                             <span class="text-secondary">{{ index+1 }}. </span>
                             {{ file.name }} <span class="text-secondary">- {{ file.size > 0.1 ? file.size : '0.01' }} MiB</span> <span v-if="file.message.length > 0"><span class="text-secondary">- </span>{{ file.message }} </span>
-                            <button type="button" class="btn-close float-end" aria-label="remove file" @click="removeFile(index)"></button>
+                            <button v-if="!uploading" type="button" class="btn-close float-end" aria-label="remove file" @click="removeFile(index)"></button>
                         </p>
                         <div class="progress" role="progressbar" aria-label="Basic example" aria-valuenow="25" aria-valuemin="0"
                             aria-valuemax="100">
