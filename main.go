@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"mime/multipart"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -56,16 +55,14 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Handling %s", fileName)
 
 		os.MkdirAll(tempPath, os.ModePerm)
-
-		// TODO: prevent writes outside the uploads folder: restrict file names
 		filePath := filepath.Join(tempPath, fileName)
 		fileDrain, err := os.Create(filePath)
-		defer fileDrain.Close()
 		if err != nil {
 			log.Printf("error creating file %s, %v", fileName, err)
 			http.Error(w, "Error creating file", http.StatusInternalServerError)
 			return
 		}
+		defer fileDrain.Close()
 
 		for !uploaded {
 			if bytesHandled, err = part.Read(buffer); err != nil {
@@ -84,7 +81,7 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 			}
 			filesize += bytesHandled
 		}
-		log.Printf("Uploaded %d bytes", filesize)
+		log.Printf("Uploaded %d bytes for %s", filesize, fileName)
 
 		// Prepare the filename for the final location (duplicate check)
 		uploadFilePath := filepath.Join(uploadPath, fileName)
@@ -105,6 +102,7 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Move the file to the final location
+		os.MkdirAll(uploadPath, os.ModePerm)
 		if err = os.Rename(filePath, uploadFilePath); err != nil {
 			log.Printf("cannot move file %s to uploads %v", fileName, err)
 			http.Error(w, "Error: cannot move file from temp to uploads", http.StatusInternalServerError)
@@ -113,11 +111,6 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 	fmt.Fprintf(w, "Upload completed")
-}
-
-func serveHTTPUploadPOSTDrain(fileName string, w http.ResponseWriter, part *multipart.Part) (bytesWritten int64, partsWritten int64, error error) {
-
-	return bytesWritten, partsWritten, nil
 }
 
 func main() {
