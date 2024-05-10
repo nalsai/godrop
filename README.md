@@ -9,11 +9,12 @@ Nextcloud file drop is great but I somewhat dislike Nextcloud and wanted somethi
 ### server
 
 - add environment variables for configuration
+- make sure uploading a file with the same name at the same time from different clients doesn't overwrite the file
+- clean up cancelled uploads (error reading chunk: unexpected EOF)
 
 ### ui
 
 - handle (ignore?) dropped folders
-- indicate not being able to drop new files while uploading
 
 ### other
 
