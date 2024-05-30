@@ -15,17 +15,18 @@ var uploadPath = "./uploads"
 var tempPath = filepath.Join(uploadPath, ".temp")
 
 func sanitizeName(s string) string {
-	s = strings.Replace(s, "/", "_", -1) // luckily I'm not on Windows, so only this character is a problem
-	//s = strings.Replace(s, ".", "_", -1)
+	s = strings.Replace(s, "/", "_", -1)
 
 	if strings.HasPrefix(s, ".") {
 		s = "_" + strings.TrimPrefix(s, ".")
+	}
+	if strings.HasSuffix(s, ".") {
+		s = strings.TrimSuffix(s, ".") + "_"
 	}
 	return s
 }
 
 func uploadHandler(w http.ResponseWriter, r *http.Request) {
-
 	log.Println("File Upload Endpoint Hit")
 
 	multipartReader, err := r.MultipartReader()

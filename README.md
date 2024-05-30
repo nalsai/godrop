@@ -4,19 +4,39 @@ I was annoyed by the lack of a simple service that I could run on my own server,
 
 Nextcloud file drop is great but I somewhat dislike Nextcloud and wanted something simpler.
 
-## TODO
+## Usage
 
-### server
+You can either use the provided container image or build the server yourself with `go build`.
 
-- add environment variables for configuration
-- make sure uploading a file with the same name at the same time from different clients doesn't overwrite the file
-- clean up cancelled uploads (error reading chunk: unexpected EOF)
+Here is my docker-compose.yml file:
 
-### ui
+```yml
+version: "3.9"
 
-- handle (ignore?) dropped folders
+services:
+  godrop:
+    image: ghcr.io/nalsai/godrop
+    container_name: godrop
+    restart: unless-stopped
+    #ports:
+      #- 7598:7598
+    volumes:
+      - ./data:/app/uploads
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.godrop.rule=Host(`godrop.example.com`)"
+      - "traefik.http.routers.godrop.entrypoints=websecure"
+      - "traefik.http.routers.godrop.tls=true"
+      - "traefik.http.routers.godrop.tls.certresolver=letsencrypt"
+      - "traefik.http.services.godrop.loadbalancer.server.port=7598"
+    networks:
+      - traefik
 
-### other
+networks:
+  traefik:
+    external: true
+```
 
-- add a license
-- add a readme
+## License
+
+This project is licensed under the [MIT License](LICENSE).
