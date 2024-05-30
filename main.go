@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"syscall"
 )
 
 var uploadPath = "./uploads"
@@ -41,6 +42,13 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 		var filesize int
 		var bytesHandled int
 		buffer := make([]byte, 4096)
+
+		err := checkDiskSpace(uploadPath)
+		if err != nil {
+			log.Printf("Error: %s", err.Error())
+			http.Error(w, "Error: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
 
 		part, err := multipartReader.NextPart()
 		if err != nil {
@@ -140,4 +148,29 @@ func main() {
 
 func homeHandler(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, "index.html")
+}
+
+// Function to check disk space and throw error if below 5%
+func checkDiskSpace(path string) error {
+	var stat syscall.Statfs_t
+
+	// Get filesystem stats
+	if err := syscall.Statfs(path, &stat); err != nil {
+		return fmt.Errorf("failed to get filesystem stats: %v", err)
+	}
+
+	// Calculate total and free blocks
+	totalBlocks := stat.Blocks
+	freeBlocks := stat.Bfree
+
+	// Calculate the percentage of free space
+	freePercent := (float64(freeBlocks) / float64(totalBlocks)) * 100
+
+	// Check if free space is below 5%
+	if freePercent < 5.0 {
+		return fmt.Errorf("free disk space below 5%%: currently at %.2f%%", freePercent)
+	}
+
+	// Free space is adequate
+	return nil
 }
