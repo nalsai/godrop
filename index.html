@@ -296,16 +296,14 @@
                                 }
 
                                 currentUploads--;
-                                if (currentIndex === self.files.length) {
-                                    //console.log('All files uploaded');
-                                    self.state = AppState.UploadDone;
-                                    window.onbeforeunload = null;D
-                                    return;
-                                }
-
-                                // File uploaded successfully
                                 if (currentIndex < self.files.length) {
-                                    uploadNext(); // Upload the next file
+                                    uploadNext();
+                                }
+                                else if (currentIndex === self.files.length) {
+                                    console.log('All files uploaded');
+                                    self.state = AppState.UploadDone;
+                                    window.onbeforeunload = null;
+                                    return;
                                 }
                             }
                         };
