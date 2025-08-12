@@ -1,4 +1,4 @@
-FROM docker.io/library/golang:1.21
+FROM docker.io/library/golang:1.24
 
 WORKDIR /app
 
