@@ -7,13 +7,17 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"syscall"
+
+	"github.com/tus/tusd/v2/pkg/filelocker"
+	"github.com/tus/tusd/v2/pkg/filestore"
+	"github.com/tus/tusd/v2/pkg/handler"
 )
 
 var uploadPath = "./uploads"
-var tempPath = filepath.Join(uploadPath, ".temp")
+var tusPath = filepath.Join(uploadPath, "tus")
+var tempPath = filepath.Join(uploadPath, "tmp")
 
 func sanitizeName(s string) string {
 	s = strings.Replace(s, "/", "_", -1)
@@ -92,23 +96,8 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		log.Printf("Uploaded %d bytes for %s", filesize, fileName)
 
-		// Prepare the filename for the final location (duplicate check)
-		uploadFilePath := filepath.Join(uploadPath, fileName)
-		if _, err := os.Stat(uploadFilePath); err == nil {
-			log.Println("File exists", uploadFilePath)
-			// File already exists, append a number to the filename
-			fileExt := filepath.Ext(fileName)
-			fileNameWithoutExt := fileName[:len(fileName)-len(fileExt)]
-			uploadFilePath = filepath.Join("./uploads", fileNameWithoutExt+"-1"+fileExt)
-			i := 2
-			for {
-				if _, err := os.Stat(uploadFilePath); os.IsNotExist(err) {
-					break
-				}
-				uploadFilePath = filepath.Join("./uploads", fileNameWithoutExt+"-"+strconv.Itoa(i)+fileExt)
-				i++
-			}
-		}
+		// Ensure unique name (avoid overwrite)
+		uploadFilePath := uniqueFilename(filepath.Join(uploadPath, fileName))
 
 		// Move the file to the final location
 		os.MkdirAll(uploadPath, os.ModePerm)
@@ -122,10 +111,31 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "Upload completed")
 }
 
+func uniqueFilename(path string) string {
+	ext := filepath.Ext(path)
+	name := strings.TrimSuffix(filepath.Base(path), ext)
+	dir := filepath.Dir(path)
+
+	newPath := path
+	i := 1
+	for {
+		if _, err := os.Stat(newPath); os.IsNotExist(err) {
+			break
+		}
+		newPath = filepath.Join(dir, fmt.Sprintf("%s_%d%s", name, i, ext))
+		i++
+	}
+	return newPath
+}
+
 func main() {
 	err := os.MkdirAll(uploadPath, os.ModePerm)
 	if err != nil {
 		log.Printf("Error creating uploads folder: %s", err.Error())
+	}
+	err = os.MkdirAll(tusPath, os.ModePerm)
+	if err != nil {
+		log.Printf("Error creating tus folder: %s", err.Error())
 	}
 
 	err = os.RemoveAll(tempPath)
@@ -137,8 +147,60 @@ func main() {
 		log.Printf("Error creating temp uploads folder: %s", err.Error())
 	}
 
+	// Set up tusd data store
+	store := filestore.New(tusPath)
+	locker := filelocker.New(tusPath)
+	composer := handler.NewStoreComposer()
+	store.UseIn(composer)
+	locker.UseIn(composer)
+
+	handler, err := handler.NewHandler(handler.Config{
+		BasePath:              "/uploadtus/",
+		StoreComposer:         composer,
+		NotifyCompleteUploads: true,
+	})
+	if err != nil {
+		log.Fatalf("unable to create handler: %s", err)
+	}
+
+	go func() {
+		for {
+			event := <-handler.CompleteUploads
+
+			// Get original filename from metadata (sent by client via Upload-Metadata)
+			origName := event.Upload.MetaData["filename"]
+			if origName == "" {
+				origName = event.Upload.ID // fallback
+			}
+
+			origName = sanitizeName(origName)
+
+			// Ensure unique name (avoid overwrite)
+			finalName := uniqueFilename(filepath.Join(uploadPath, origName))
+
+			// Move file from tus temp folder to final folder
+			src := filepath.Join(tusPath, event.Upload.ID)
+			if err := os.Rename(src, finalName); err != nil {
+				log.Println("Error moving file:", err)
+				continue
+			}
+
+			// Remove to info file
+			infoFile := filepath.Join(tusPath, event.Upload.ID+".info")
+			if err := os.Remove(infoFile); err != nil {
+				log.Printf("Error removing info file %s: %s", infoFile, err.Error())
+				continue
+			}
+
+			log.Printf("TUS upload %s saved as %s", event.Upload.ID, finalName)
+		}
+	}()
+
 	http.HandleFunc("/", homeHandler)
 	http.HandleFunc("/upload", uploadHandler)
+	http.Handle("/uploadtus/", http.StripPrefix("/uploadtus/", handler))
+	http.Handle("/uploadtus", http.StripPrefix("/uploadtus", handler))
+
 	fmt.Println("Starting server at http://localhost:7598")
 	err = http.ListenAndServe(":7598", nil)
 	if err != nil {

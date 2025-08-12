@@ -6,10 +6,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>godrop</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <script src="https://cdn.jsdelivr.net/npm/tus-js-client@3.1.3/dist/tus.min.js"></script>
     <style>
         .drop-area {
             border: 2px dashed #ccc;
-            padding: 40px;
+            padding: 60px;
             text-align: center;
             cursor: pointer;
         }
@@ -103,16 +104,27 @@
 <body>
     <div class="container my-5">
         <div id="app">
-            <a class="text-body-secondary float-end" href="https://github.com/nalsai/godrop" target="_blank" rel="noreferrer">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-github" viewBox="0 0 16 16">
-                    <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8" />
-                </svg>
-                <span class="d-none">GitHub</span>
-            </a>
+            <div class="text-body-secondary float-end">
+                <a class="text-body-secondary float-end" href="https://github.com/nalsai/godrop" target="_blank" rel="noreferrer">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-github" viewBox="0 0 16 16">
+                        <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8" />
+                    </svg>
+                    <span class="d-none">GitHub</span>
+                </a>
+                <br>
+                <div class="form-check small">
+                    <input class="form-check-input" type="checkbox" id="uploadMethodSwitch" v-model="useTus">
+                    <label class="form-check-label" for="uploadMethodSwitch">
+                        Resumable
+                    </label>
+                </div>
+            </div>
+
             <h1 class="">Upload all your files here!</h1>
 
-            <p class="mb-2">I swear I will treat them well.</p>
-            <p class="mb-4">Currently, files over 100MB may lead to an error depending on your connection method. 😢</p>
+            <p class="mb-4">I swear I will treat them well.</p>
+            <!--<p class="mb-4">Files over 100MB may lead to an error with Simple HTTP Upload. 😢</p>-->
+
             <label for="fileInput" id="file-drop-area" class="d-block drop-area" @dragover.prevent="dragOver"
                 @dragenter.prevent="dragEnter" @dragleave.prevent="dragLeave" @drop.prevent="dropFiles"
                 :data-tooltip="state === AppState.Uploading ? 'An upload is currently running.' : null">
@@ -133,9 +145,7 @@
                     webkitdirectory mozdirectory :disabled="state === AppState.Uploading">
             </div>
 
-            <hr class="my-4">
-
-            <div class="text-center mb-4">
+            <div class="text-center my-4">
                 <span class="d-inline-block"
                     :data-tooltip="state === AppState.Init || state === AppState.UploadDone ? 'Select files first.' : state === AppState.Uploading ? 'An upload is currently running.' : null">
                     <div @click="uploadFiles" class="btn btn-pink-primary rounded-5 px-4 py-2"
@@ -144,12 +154,12 @@
                             <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5" />
                             <path d="M7.646 1.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1-.708.708L8.5 2.707V11.5a.5.5 0 0 1-1 0V2.707L5.354 4.854a.5.5 0 1 1-.708-.708z" />
                         </svg>&nbsp;
-                        Upload Files
+                        Upload Files {{ useTus ? '' : '(HTTP)' }}
                     </div>
                 </span>
             </div>
 
-            <div v-if="files.length > 0">
+            <div v-if="files.length > 0" class="mt-5">
                 <div v-for="(file, index) in files" :key="index" class="card my-3">
                     <div class="card-body">
                         <p>
@@ -187,6 +197,8 @@
                 return {
                     files: [],
                     state: AppState.Init,
+                    useTus: true, // Default to using Tus
+                    activeUploads: [], // Track active Tus uploads for cancellation
                 };
             },
             methods: {
@@ -211,31 +223,32 @@
                     document.getElementById('file-drop-area').classList.remove('tooltip-display');
                     if (this.state === AppState.Uploading) { return; }
                     const files = event.dataTransfer.files;
-                    //this.$refs.dirInput.value = null;
                     this.handleFiles(files);
                 },
                 handleFileUpload() {
                     const files = this.$refs.fileInput.files;
-                    //this.$refs.dirInput.value = null;
                     this.handleFiles(files);
                 },
                 handleDirectoryUpload() {
                     const files = this.$refs.dirInput.files;
-                    //this.$refs.fileInput.value = null;
                     this.handleFiles(files);
                 },
                 handleFiles(files) {
-                    //console.log('Files selected:', files);
                     this.state = AppState.WaitingForUpload;
                     this.files = Array.from(files).map((f, i) => ({
                         file: f,
                         name: f.name,
                         size: (f.size / 1024 / 1024).toFixed(2), // in MiB
                         message: '',
-                        progress: 0
+                        progress: 0,
+                        tusUpload: null // Store Tus upload instance
                     }));
                 },
                 removeFile(index) {
+                    // If there's an active Tus upload, abort it
+                    if (this.files[index].tusUpload) {
+                        this.files[index].tusUpload.abort();
+                    }
                     this.$delete(this.files, index);
                 },
                 uploadFiles() {
@@ -254,31 +267,70 @@
                     window.onbeforeunload = confirmExit;
 
                     this.state = AppState.Uploading;
-                    const concurrentUploads = 4;
+
+                    if (this.useTus) {
+                        this.uploadWithTus();
+                    } else {
+                        this.uploadWithHttp();
+                    }
+                },
+                uploadWithTus() {
+                    const self = this;
+                    let completedUploads = 0;
+                    
+                    this.files.forEach((fileObj, index) => {
+                        const upload = new tus.Upload(fileObj.file, {
+                            endpoint: '/uploadtus/',
+                            retryDelays: [0, 3000, 5000, 10000, 20000],
+                            metadata: {
+                                filename: fileObj.file.name,
+                                filetype: fileObj.file.type
+                            },
+                            onError: function(error) {
+                                console.error('Upload failed for file:', fileObj.name, error);
+                                self.$set(fileObj, 'message', 'Upload failed: ' + error.message);
+                                completedUploads++;
+                                self.checkAllUploadsComplete(completedUploads);
+                            },
+                            onProgress: function(bytesUploaded, bytesTotal) {
+                                const percentage = ((bytesUploaded / bytesTotal) * 100).toFixed(2);
+                                self.$set(fileObj, 'progress', percentage);
+                            },
+                            onSuccess: function() {
+                                console.log('Upload successful for file:', fileObj.name);
+                                self.$set(fileObj, 'message', 'Upload complete');
+                                self.$set(fileObj, 'progress', 100);
+                                completedUploads++;
+                                self.checkAllUploadsComplete(completedUploads);
+                            }
+                        });
+
+                        // Store the upload instance for potential cancellation
+                        this.$set(fileObj, 'tusUpload', upload);
+                        
+                        // Start the upload
+                        upload.start();
+                    });
+                },
+                uploadWithHttp() {
+                    const concurrentUploads = 3;
                     let currentIndex = 0;
                     let currentUploads = 0;
-
-                    // start concurrentUploads number of uploads
-                    // if a file is done, start a new upload
+                    const self = this;
 
                     const uploadNext = () => {
                         currentUploads++;
 
-                        let myfile = this.files[currentIndex];
+                        let myfile = self.files[currentIndex];
 
                         const formData = new FormData();
-                        //console.log('Uploading file:', myfile.file);
-                        formData.append('file', this.files[currentIndex].file);
+                        formData.append('file', myfile.file);
                         const xhr = new XMLHttpRequest();
-
-                        const self = this; // Capture the reference to 'this'
 
                         xhr.upload.addEventListener('progress', (function (i) {
                             return function (event) {
                                 if (event.lengthComputable) {
                                     const progress = ((event.loaded / event.total) * 100).toFixed(2);
-
-                                    //console.log(currentIndex, i, progress);
                                     self.$set(myfile, 'progress', progress);
                                 }
                             };
@@ -287,9 +339,7 @@
                         xhr.onreadystatechange = () => {
                             if (xhr.readyState === XMLHttpRequest.DONE) {
                                 if (xhr.status === 200) {
-                                    //console.log('Upload successful with response', xhr.responseText);
                                     self.$set(myfile, 'message', xhr.responseText);
-
                                 } else {
                                     console.error('Upload failed for file:', myfile);
                                     self.$set(myfile, 'message', xhr.responseText);
@@ -316,6 +366,18 @@
 
                     while (currentUploads < concurrentUploads && currentIndex < this.files.length) {
                         uploadNext();
+                    }
+                },
+                checkAllUploadsComplete(completedCount) {
+                    if (completedCount >= this.files.length) {
+                        console.log('All Tus uploads completed');
+                        this.state = AppState.UploadDone;
+                        window.onbeforeunload = null;
+                        
+                        // Clear Tus upload instances
+                        this.files.forEach(fileObj => {
+                            this.$set(fileObj, 'tusUpload', null);
+                        });
                     }
                 }
             }
