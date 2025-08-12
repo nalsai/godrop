@@ -170,7 +170,13 @@
                                 <span class="text-secondary">- </span>
                                 {{ file.message }}
                             </span>
-                            <button v-if="state != AppState.Uploading" type="button" class="btn-close float-end" aria-label="remove file" @click="removeFile(index)"></button>
+                            <button
+                                type="button"
+                                class="btn-close float-end"
+                                aria-label="remove file"
+                                @click="removeFile(index)"
+                                :style="state === AppState.Uploading ? 'filter: invert(18%) sepia(97%) saturate(7492%) hue-rotate(329deg) brightness(90%) contrast(119%);' : ''"
+                            ></button>
                         </p>
                         <div class="progress" role="progressbar" aria-label="Basic example" aria-valuenow="25" aria-valuemin="0" aria-valuemax="100">
                             <div class="progress-bar" :style="{ width: file.progress + '%' }"></div>
@@ -250,6 +256,10 @@
                         this.files[index].tusUpload.abort();
                     }
                     this.$delete(this.files, index);
+                    if (this.files.length === 0 && this.state === AppState.Uploading) {
+                        this.state = AppState.UploadDone;
+                        window.onbeforeunload = null;
+                    }
                 },
                 uploadFiles() {
                     if (this.files.length === 0) {
