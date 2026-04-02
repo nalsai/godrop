@@ -155,9 +155,10 @@ func main() {
 	locker.UseIn(composer)
 
 	handler, err := handler.NewHandler(handler.Config{
-		BasePath:              "/uploadtus/",
-		StoreComposer:         composer,
-		NotifyCompleteUploads: true,
+		BasePath:                "/uploadtus/",
+		StoreComposer:           composer,
+		NotifyCompleteUploads:   true,
+		RespectForwardedHeaders: true,
 	})
 	if err != nil {
 		log.Fatalf("unable to create handler: %s", err)
