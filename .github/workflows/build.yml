@@ -23,7 +23,7 @@ jobs:
           tags: latest ${{ github.sha }}
           containerfiles: |
             ./Containerfile
-      - uses: redhat-actions/podman-login@v1
+      - uses: redhat-actions/podman-login@v2
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
