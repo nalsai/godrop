@@ -16,7 +16,7 @@ jobs:
       packages: write
     steps:
       - uses: actions/checkout@v7
-      - uses: redhat-actions/buildah-build@v2
+      - uses: redhat-actions/buildah-build@v3
         id: build-image
         with:
           image: ${{ env.IMAGE_NAME }}
